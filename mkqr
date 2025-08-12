@@ -1,0 +1,92 @@
+#!/usr/bin/env ruby
+
+# frozen_string_literal: true
+
+require "optparse"
+require "rqrcode"
+
+OUT_FILE = "out.png"
+QR_FILE = "qr.png"
+
+def magick_compose =
+  "magick composite -compose over -geometry +155+100 qr.png canvas.png out.png"
+
+def magick_annotate(text) =
+  "mogrify -font Times-Roman -pointsize 30 -gravity center -annotate +0+90 '#{text.join("\n")}' #{OUT_FILE}"
+
+def url(opts)
+  base_url = "https://nearme.lml.live"
+
+  if opts[:guid]
+    "#{base_url}/location/#{opts[:guid]}"
+  elsif opts[:lat] && opts[:lng]
+    "#{base_url}?lat=#{opts[:lat]}&lng=#{opts[:lng]}"
+  end
+end
+
+def main(opts)
+  text = [
+    "Scan here for a real-time guide",
+    "to all the live music",
+    "you can find near #{opts[:name]}."
+  ]
+
+  qr_opts = {
+    :size => 250,
+    :color => ChunkyPNG::Color.from_hex("01000b"),
+    :fill => "white"
+  }
+  qr_bytes = RQRCode::QRCode.new(url(opts)).as_png(**qr_opts)
+  File.binwrite(QR_FILE, qr_bytes)
+
+  system(magick_compose)
+  system(magick_annotate(text))
+end
+
+def clean
+  File.delete(QR_FILE)
+  File.delete(OUT_FILE)
+end
+
+if __FILE__ == $0
+  opts = {
+    :out => "out.png",
+    :lat => "-37.7979577",
+    :lng => "144.9758475",
+    :guid => nil
+  }
+
+  OptionParser.new do |parser|
+    parser.banner = "Usage: #{File.basename(__FILE__)} [OPTIONS]"
+    parser.on("-c", "--clean", "Clean up") do
+      clean
+      exit 0
+    end
+    parser.on("--lat=LAT", "Latitude") do |lat|
+      opts[:lat] = lat
+    end
+    parser.on("--lng=LNG", "Longitude") do |lng|
+      opts[:lng] = lng
+    end
+    parser.on("--guid=GUID", "GUID") do |guid|
+      opts[:guid] = guid
+    end
+    parser.on("--name=NAME", "Venue name") do |name|
+      opts[:name] = name
+    end
+
+    unless opts[:guid] || (opts[:lat] && opts[:lng])
+      puts "Either a GUID or a latitude/longitude pair is required"
+      exit 1
+    end
+
+    if opts[:guid] && (opts[:lat] || opts[:lng])
+      puts "Only one of GUID or latitude/longitude may be specified"
+      exit 1
+    end
+
+    parser.parse!(ARGV)
+  end
+
+  main(opts)
+end

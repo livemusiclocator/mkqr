@@ -1,0 +1,3 @@
+.bundle
+*.png
+!canvas.png
