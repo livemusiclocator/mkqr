@@ -25,10 +25,16 @@ def url(opts)
 end
 
 def main(opts)
+  location_copy = if opts[:name]
+    "near #{opts[:name]}"
+  else
+    "nearby"
+  end
+
   text = [
     "Scan here for a real-time guide",
     "to all the live music",
-    "you can find near #{opts[:name]}."
+    "you can find #{location_copy}."
   ]
 
   qr_opts = {
